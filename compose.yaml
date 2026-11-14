@@ -1,0 +1,35 @@
+# Highlights next to an existing Immich install. See README.md.
+#   cp .env.example .env    # fill in the two keys
+#   docker compose up -d
+name: highlights
+
+services:
+  highlights:
+    image: ghcr.io/jbarnell1/highlights:latest
+    build: .
+    container_name: highlights
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      IMMICH_MEDIA_ROOT: /immich
+    volumes:
+      - ${HL_DATA:-./data}:/data
+      - ${IMMICH_LIBRARY:-./immich-library-not-mounted}:/immich:ro
+    # Intel Quick Sync. Remove this block (and group_add) on a machine without an Intel GPU;
+    # rendering then runs on the CPU.
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - ${RENDER_GID:-44}   # the host's render group: getent group render | cut -d: -f3
+    ports:
+      # Local only: put a reverse proxy (Tailscale serve, Caddy, nginx) in front.
+      - 127.0.0.1:8040:8040
+    networks:
+      - default
+      - immich
+
+networks:
+  immich:
+    # The network Immich's own compose file creates (project "immich").
+    name: ${IMMICH_NETWORK:-immich_default}
+    external: true

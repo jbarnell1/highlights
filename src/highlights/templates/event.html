@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ ev.place or ev.title }} · Highlights{% endblock %}
+{% block body_attrs %}{% if ev.stage in ("picking", "rendering", "cleaning") %}data-poll="event" data-event="{{ ev.id }}" data-stage="{{ ev.stage }}"{% endif %}{% endblock %}
+{% block header %}
+  <a class="back" href="{{ base }}/" aria-label="Back to all highlights">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </a>
+  <span class="top-title">{{ ev.place or ev.title if ev.kind == "trip" else ev.title }}</span>
+{% endblock %}
+{% block content %}
+{% set step = STEP_OF[ev.stage] %}
+
+<figure class="hero">
+  {% if ev.stage in ("ready", "done") and has_video %}
+    <video src="{{ base }}/events/{{ ev.id }}/video" controls playsinline preload="metadata"
+      {% if ev.cover_asset_id %}poster="{{ base }}/thumb/{{ ev.cover_asset_id }}?size=preview"{% endif %}></video>
+  {% elif ev.cover_asset_id %}
+    <img src="{{ base }}/thumb/{{ ev.cover_asset_id }}?size=preview" alt="">
+  {% endif %}
+</figure>
+
+<div class="head">
+  <h1>{{ ev.title }}</h1>
+  <p class="sub">{{ "Trip" if ev.kind == "trip" else "Month" }} · {{ ev.photo_count }} photos · {{ ev.video_count }} clips{% if ev.video_bytes %} ({{ ev.video_bytes | gb }}){% endif %}</p>
+</div>
+
+<ol class="steps" aria-label="Progress">
+  {% for key, label in STEPS %}
+    <li class="{% if loop.index0 < step or ev.stage == 'done' %}did{% elif loop.index0 == step %}now{% endif %}"
+        {% if loop.index0 == step and ev.stage != 'done' %}aria-current="step"{% endif %}>
+      <span class="dot"></span><span class="label">{{ label }}</span>
+    </li>
+  {% endfor %}
+</ol>
+
+{% if ev.error %}
+<div class="notice error" role="alert">
+  <strong>That didn't work.</strong> {{ ev.error }}
+</div>
+{% endif %}
+
+{# ---------- in progress ---------- #}
+{% if ev.stage in ("picking", "rendering", "cleaning") %}
+<section class="panel working" aria-live="polite">
+  <h2>{{ STAGE_LABEL[ev.stage] }}</h2>
+  <p class="status-line" id="status-line">{{ (job.message if job else None) or ("Waiting for the job ahead of it" if job and job.status == "queued" else "Starting") }}</p>
+  <div class="meter big"><span id="meter" style="width: {{ (((job.progress if job else 0) or 0) * 100) | round(0) }}%"></span></div>
+  <p class="fine">You can close this. It keeps going on the server{% if ev.stage == "rendering" %}, and the finished video lands in Immich{% endif %}.</p>
+</section>
+{% endif %}
+
+{# ---------- found ---------- #}
+{% if ev.stage == "found" %}
+<section class="panel">
+  <h2>Make a highlight?</h2>
+  <p>Claude will look through all {{ ev.video_count }} clips and {{ ev.photo_count }} photos, pick the best moments, and put them in an Immich album for you to check.</p>
+  {% if ev.video_seconds %}<p class="fine">{{ ev.video_seconds | span }} of raw video in this {{ ev.kind }}.</p>{% endif %}
+</section>
+{% endif %}
+
+{# ---------- picks ready ---------- #}
+{% if ev.stage == "picks_ready" and picks %}
+<section class="panel">
+  <h2>{{ clip_count }} clips and {{ photo_count }} photos</h2>
+  <p>About {{ pick_seconds | span }} long. To change what goes in, edit the album in Immich: remove shots you don't want or add ones that were missed. Rendering picks up your changes.</p>
+  {% if ev.album_id %}
+  <a class="btn ghost wide" href="{{ immich }}/albums/{{ ev.album_id }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    Edit the album in Immich
+  </a>
+  {% endif %}
+</section>
+<section aria-label="Picked moments">
+  <ul class="grid">
+    {% for p in picks %}
+    <li>
+      <img src="{{ base }}/thumb/{{ p.asset_id }}" alt="{{ p.why or '' }}" loading="lazy">
+      {% if p.kind == "clip" %}<span class="badge">▶ {{ p.duration_s | round(0) | int }}s</span>{% endif %}
+      {% if p.source == "added" %}<span class="badge added">Added</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ---------- ready ---------- #}
+{% if ev.stage == "ready" %}
+<section class="panel">
+  <h2>Your video is ready</h2>
+  <p>{{ ev.highlight_seconds | minutes }} · {{ ev.highlight_bytes | gb }}. It's also in Immich, in this trip's album and in <em>Highlights</em>.</p>
+  {% if ev.highlight_asset_id %}<a class="btn ghost wide" href="{{ immich }}/photos/{{ ev.highlight_asset_id }}">Watch it in Immich</a>{% endif %}
+</section>
+
+{% if confirm %}
+<section class="panel confirm" id="confirm">
+  {% if not cleanup_enabled %}
+    <h2>Cleanup is off for now</h2>
+    <p>Raw clips stay in Immich until the photo library has an offsite backup. Once it does, turn on <code>HL_CLEANUP_ENABLED</code> and come back.</p>
+  {% elif candidates is none %}
+    <p>Couldn't check the raw clips. Try again in a moment.</p>
+  {% elif not candidates %}
+    <h2>No raw clips to remove</h2>
+    <p>Every clip here is a favorite, in another album, or already gone.</p>
+  {% else %}
+    <h2>Move {{ candidates | length }} raw clips to Immich's trash?</h2>
+    <p>That frees about <strong>{{ cleanup_bytes | gb }}</strong>. Photos stay. So do favorites and any clip you've put in another album. Immich keeps trashed items for 30 days before deleting them for good.</p>
+    <p class="fine">Favorite a clip in Immich first if you want to keep it.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endif %}
+
+{# ---------- done ---------- #}
+{% if ev.stage == "done" %}
+<section class="panel">
+  <h2>Done</h2>
+  <p>{{ ev.highlight_seconds | minutes }} video in Immich.{% if ev.freed_bytes %} Freed {{ ev.freed_bytes | gb }} by trashing the raw clips.{% else %} The raw clips were kept.{% endif %}</p>
+  {% if ev.highlight_asset_id %}<a class="btn ghost wide" href="{{ immich }}/photos/{{ ev.highlight_asset_id }}">Open in Immich</a>{% endif %}
+</section>
+{% endif %}
+
+{% if ev.stage == "dismissed" %}
+<section class="panel"><h2>Skipped</h2><p>This one won't get a highlight unless you bring it back.</p></section>
+{% endif %}
+
+{% if log %}
+<section aria-labelledby="log-h">
+  <h2 id="log-h" class="small">History</h2>
+  <ul class="log">
+    {% for item in log %}<li><time>{{ item.at | ago }}</time>{{ item.message }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block bar %}
+{% set act = base ~ "/events/" ~ ev.id %}
+{% if ev.stage == "found" %}
+<nav class="bar">
+  <form method="post" action="{{ act }}/dismiss"><button class="btn ghost">Skip</button></form>
+  <form method="post" action="{{ act }}/pick" class="grow"><button class="btn primary" {% if missing %}disabled{% endif %}>{{ "Try again" if ev.error else "Make a highlight" }}</button></form>
+</nav>
+{% elif ev.stage == "picks_ready" %}
+<nav class="bar">
+  <form method="post" action="{{ act }}/pick" data-confirm="Throw out these picks and ask Claude again?"><button class="btn ghost">Pick again</button></form>
+  <form method="post" action="{{ act }}/render" class="grow"><button class="btn primary">{{ "Try again" if ev.error else "Render video" }}</button></form>
+</nav>
+{% elif ev.stage == "ready" and not confirm %}
+<nav class="bar">
+  <form method="post" action="{{ act }}/back"><button class="btn ghost">Change picks</button></form>
+  <a class="btn primary grow" href="{{ act }}?confirm=1#confirm">Looks good</a>
+</nav>
+{% elif ev.stage == "ready" and confirm %}
+<nav class="bar stack">
+  {% if cleanup_enabled and candidates %}
+  <form method="post" action="{{ act }}/cleanup"><button class="btn danger wide">Trash {{ candidates | length }} raw clips</button></form>
+  {% endif %}
+  <form method="post" action="{{ act }}/finish"><button class="btn {{ 'ghost' if cleanup_enabled and candidates else 'primary' }} wide">Keep the raw clips and finish</button></form>
+</nav>
+{% elif ev.stage == "dismissed" %}
+<nav class="bar"><form method="post" action="{{ act }}/restore" class="grow"><button class="btn primary">Bring it back</button></form></nav>
+{% endif %}
+{% endblock %}

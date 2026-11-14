@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Activity · Highlights{% endblock %}
+{% block header %}
+  <a class="back" href="{{ base }}/" aria-label="Back to all highlights">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </a>
+  <span class="top-title">Activity</span>
+{% endblock %}
+{% block content %}
+{% if log %}
+<ul class="log">
+  {% for item in log %}
+  <li><time>{{ item.at | ago }}</time>{% if item.event_id %}<a href="{{ base }}/events/{{ item.event_id }}">{{ item.title }}</a>: {% endif %}{{ item.message }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">Nothing has happened yet.</p>
+{% endif %}
+{% endblock %}

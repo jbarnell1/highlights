@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Problem · Highlights{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>{{ "Not found" if status_code == 404 else "That didn't work" }}</h2>
+  <p>{{ message }}</p>
+  <a class="btn ghost" href="{{ base }}/">Back to Highlights</a>
+</section>
+{% endblock %}

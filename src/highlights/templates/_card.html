@@ -1,0 +1,23 @@
+{% macro card(ev, base, job=None, hint=None) %}
+<a class="card stage-{{ ev.stage }}{% if ev.error %} has-error{% endif %}" href="{{ base }}/events/{{ ev.id }}">
+  <span class="cover">
+    {% if ev.cover_asset_id %}<img src="{{ base }}/thumb/{{ ev.cover_asset_id }}" alt="" loading="lazy">{% endif %}
+    {% if ev.kind == "trip" %}<span class="kind">Trip</span>{% endif %}
+  </span>
+  <span class="card-body">
+    <span class="card-title">{{ ev.place or ev.title if ev.kind == "trip" else ev.title }}</span>
+    <span class="card-meta">{{ date_span(ev) }}</span>
+    {% if ev.error %}
+      <span class="card-hint error-text">{{ ev.error }}</span>
+    {% elif job %}
+      <span class="card-hint">{{ job.message or ("Waiting its turn" if job.status == "queued" else "Starting") }}</span>
+      <span class="meter" data-job="{{ ev.id }}"><span style="width: {{ ((job.progress or 0) * 100) | round(0) }}%"></span></span>
+    {% elif hint %}
+      <span class="card-hint">{{ hint }}</span>
+    {% else %}
+      <span class="card-hint">{{ ev.photo_count }} photos · {{ ev.video_count }} clips{% if ev.video_bytes %} · {{ ev.video_bytes | gb }}{% endif %}</span>
+    {% endif %}
+  </span>
+  <span class="chip">{{ "Needs a retry" if ev.error else STAGE_LABEL[ev.stage] }}</span>
+</a>
+{% endmacro %}

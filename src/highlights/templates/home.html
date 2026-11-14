@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block body_attrs %}data-poll="home"{% endblock %}
+{% block header %}
+  {{ super() }}
+  <form method="post" action="{{ base }}/scan" class="scan">
+    <button class="icon-btn" {% if scan_job %}disabled{% endif %} aria-label="Scan Immich for new trips and months">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="{% if scan_job %}spin{% endif %}"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"/></svg>
+    </button>
+  </form>
+{% endblock %}
+{% block content %}
+<p class="lede">
+  {% if scan_job %}Scanning Immich… {{ scan_job.message or "" }}
+  {% elif last_scan %}Checked Immich {{ last_scan | ago }}{% if library_count %} · {{ "{:,}".format(library_count | int) }} photos and videos{% endif %}
+  {% else %}Scanning Immich for the first time.{% endif %}
+</p>
+
+{% if needs %}
+<section aria-labelledby="needs-h">
+  <h2 id="needs-h">Needs you <span class="count">{{ needs | length }}</span></h2>
+  <div class="list">
+    {% for ev in needs %}
+      {% if ev.stage == "picks_ready" %}{{ card(ev, base, hint="Check the picks, then render") }}
+      {% elif ev.stage == "ready" %}{{ card(ev, base, hint="Watch it, then finish up") }}
+      {% else %}{{ card(ev, base) }}{% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if working %}
+<section aria-labelledby="working-h">
+  <h2 id="working-h">Working on it</h2>
+  <div class="list">
+    {% for ev in working %}{{ card(ev, base, job=jobs.get(ev.id)) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section aria-labelledby="found-h">
+  <h2 id="found-h">Ready for a highlight</h2>
+  <nav class="tabs" aria-label="Trips or months">
+    <a href="{{ base }}/?tab=trips" class="{% if tab == 'trips' %}on{% endif %}" {% if tab == 'trips' %}aria-current="page"{% endif %}>Trips <span>{{ trips | length }}</span></a>
+    <a href="{{ base }}/?tab=months" class="{% if tab == 'months' %}on{% endif %}" {% if tab == 'months' %}aria-current="page"{% endif %}>Months <span>{{ months | length }}</span></a>
+  </nav>
+  {% set rows = trips if tab == "trips" else months %}
+  {% if rows %}
+    <div class="list">{% for ev in rows %}{{ card(ev, base) }}{% endfor %}</div>
+  {% elif last_scan %}
+    <p class="empty">
+      {% if tab == "trips" %}No trips found yet. Trips show up when photos are taken more than 80 km from home over at least half a day.
+      {% else %}No finished months with enough photos yet. A month shows up once it's over.{% endif %}
+    </p>
+  {% else %}
+    <p class="empty">Looking through Immich. This takes a minute the first time.</p>
+  {% endif %}
+</section>
+
+{% if done %}
+<section aria-labelledby="done-h">
+  <details class="fold">
+    <summary><h2 id="done-h">Finished <span class="count">{{ done | length }}</span></h2>{% if freed %}<span class="freed">{{ freed | gb }} freed</span>{% endif %}</summary>
+    <div class="list">{% for ev in done %}{{ card(ev, base, hint=(ev.highlight_seconds | minutes) ~ " video" ~ ((" · " ~ (ev.freed_bytes | gb) ~ " freed") if ev.freed_bytes else "")) }}{% endfor %}</div>
+  </details>
+</section>
+{% endif %}
+
+{% if skipped %}
+<section>
+  <details class="fold">
+    <summary><h2>Skipped <span class="count">{{ skipped | length }}</span></h2></summary>
+    <div class="list">{% for ev in skipped %}{{ card(ev, base) }}{% endfor %}</div>
+  </details>
+</section>
+{% endif %}
+
+<p class="foot"><a href="{{ base }}/activity">Activity</a> · <a href="{{ immich }}/albums">Open Immich</a></p>
+{% endblock %}
