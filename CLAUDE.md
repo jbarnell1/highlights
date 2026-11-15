@@ -32,6 +32,9 @@ hostname, address, path, API key, token or anything about the household that run
 7. Tests ship with changes: `uv run pytest -q` and `uv run ruff check .`. No network in tests.
 8. Mobile first: actions sit in the bottom bar, touch targets are at least 44 px, check at 375 px.
 9. No em dashes in UI copy, docs, or commits.
+10. Screenshots and the social preview use demo data only, never a real library. How the demo
+    was made and the photo credits are in `docs/screenshots/CREDITS.md`; the logo is in
+    `docs/brand/`.
 
 ## Releasing
 CI (`ci.yml`) runs lint, tests and a Docker build on every push; `gitleaks.yml` scans history.
