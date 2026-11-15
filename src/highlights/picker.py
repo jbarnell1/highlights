@@ -128,7 +128,9 @@ class ClaudeCode:
     """Runs picks through the Claude Code CLI in print mode, signed in with the Max plan.
 
     Usage counts against the plan's limits instead of a separate API bill. The contact sheets are
-    written to a folder Claude may only read; every other tool is turned off.
+    written to a temp folder that is also the working directory. Read is allowed only inside it
+    (a read anywhere else is denied, checked against the real CLI), every other tool is turned
+    off, and the subprocess gets none of this app's settings or keys.
     """
 
     def __init__(self, exe: Path, token: str, model: str, work_dir: Path):
@@ -138,15 +140,14 @@ class ClaudeCode:
         run_dir = Path(tempfile.mkdtemp(prefix="pick-", dir=self.work_dir))
         try:
             prompt = self._prompt(content, run_dir)
-            env = {k: v for k, v in os.environ.items()
-                   if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}  # never bill the API
+            env = child_env(os.environ)
             env["CLAUDE_CODE_OAUTH_TOKEN"] = self.token
             proc = subprocess.run(
                 [str(self.exe), "-p", "--output-format", "json",
                  "--json-schema", json.dumps(SCHEMA), "--model", self.model,
                  "--append-system-prompt", SYSTEM,
-                 "--allowedTools", "Read", "--disallowedTools", DISALLOWED,
-                 "--add-dir", str(run_dir), "--no-session-persistence"],
+                 "--allowedTools", ALLOWED, "--disallowedTools", DISALLOWED,
+                 "--no-session-persistence"],
                 input=prompt, capture_output=True, text=True, encoding="utf-8",
                 cwd=run_dir, env=env, timeout=45 * 60, creationflags=NO_WINDOW,
             )
@@ -166,12 +167,28 @@ class ClaudeCode:
                 n += 1
                 path = run_dir / f"sheet-{n:03d}.jpg"
                 path.write_bytes(base64.standard_b64decode(block["source"]["data"]))
-                lines.append(f"  Sheet image: {path}")
+                lines.append(f"  Sheet image: ./{path.name}")
         lines += ["", "When you have looked at every sheet, answer with the picks as JSON."]
         return "\n".join(lines)
 
 
-DISALLOWED = "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Agent"
+# Read only inside the working directory (the temp folder with the sheets). An unscoped "Read"
+# would let the model open any file the process can, such as the mounted photo library.
+ALLOWED = "Read(./**)"
+DISALLOWED = "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Agent,Glob,Grep"
+_SECRET_WORDS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "CREDENTIAL")
+
+
+def child_env(environ) -> dict[str, str]:
+    """The environment for the Claude Code subprocess: no app settings, no keys.
+
+    Drops this app's own variables (IMMICH_*, HL_*), anything that looks like a secret, and the
+    Anthropic API variables so picking can never bill the API. The caller adds the one token
+    Claude Code needs.
+    """
+    return {k: v for k, v in environ.items()
+            if not k.upper().startswith(("IMMICH_", "HL_", "ANTHROPIC_"))
+            and not any(w in k.upper() for w in _SECRET_WORDS)}
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # nonzero raises outside Windows
 
 

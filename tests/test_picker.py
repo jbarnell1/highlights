@@ -35,10 +35,26 @@ def test_prompt_writes_every_sheet(tmp_path):
         [picker.SheetPhotos([("P1", "b")], b"\xff\xd8jpeg2")])
     prompt = picker.ClaudeCode._prompt(content, tmp_path)
     sheets = sorted(tmp_path.glob("sheet-*.jpg"))
-    assert len(sheets) == 2 and all(str(s) in prompt for s in sheets)
+    assert len(sheets) == 2 and all(f"./{s.name}" in prompt for s in sheets)
     assert "V1: video, 30 seconds long" in prompt
 
 
 def test_target_seconds_bounds():
     assert picker.target_seconds(0, 10) == 45
     assert picker.target_seconds(5000, 43) == 300
+
+
+def test_child_env_drops_app_settings_and_secrets():
+    env = picker.child_env({
+        "PATH": "/usr/bin", "HOME": "/home/highlights", "LANG": "C.UTF-8",
+        "IMMICH_API_KEY": "k", "IMMICH_URL": "http://immich", "HL_DATA_DIR": "/data",
+        "ANTHROPIC_API_KEY": "sk", "ANTHROPIC_AUTH_TOKEN": "t", "CLAUDE_CODE_OAUTH_TOKEN": "old",
+        "SOME_PASSWORD": "p", "DISABLE_AUTOUPDATER": "1",
+    })
+    assert env == {"PATH": "/usr/bin", "HOME": "/home/highlights", "LANG": "C.UTF-8",
+                   "DISABLE_AUTOUPDATER": "1"}
+
+
+def test_read_is_scoped_to_the_working_folder():
+    assert picker.ALLOWED == "Read(./**)"
+    assert "Glob" in picker.DISALLOWED and "Bash" in picker.DISALLOWED
