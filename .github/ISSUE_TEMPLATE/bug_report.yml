@@ -1,0 +1,77 @@
+name: Bug report
+description: Something does not work the way the README says it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please remove API keys, tokens, hostnames and anything else
+        private from logs before you paste them. For a security problem, do not open an issue:
+        use Security > Report a vulnerability instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+      placeholder: |
+        1. Opened the trip "..."
+        2. Tapped "Render video"
+        3. The page showed "That didn't work. ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: step
+    attributes:
+      label: Which step
+      options:
+        - Setup or hl check
+        - Scan (finding trips and months)
+        - Pick (Claude choosing moments)
+        - Render
+        - Clean up
+        - The web app itself
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Highlights version
+      description: The image tag you run (for example 0.2.0), or the commit if you run from source.
+    validations:
+      required: true
+  - type: input
+    id: immich-version
+    attributes:
+      label: Immich version
+      placeholder: v2.x.x
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Docker Compose, published image
+        - Docker Compose, built locally
+        - Without Docker (uv)
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of hl check
+      description: "`docker compose exec highlights hl check` (or `uv run hl check`). It prints no secrets."
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`docker compose logs --tail 100 highlights`, and the event's History list if it shows an error."
+      render: text
+  - type: input
+    id: hardware
+    attributes:
+      label: Encoder and hardware
+      description: For render problems. The encoder line from hl check, and the CPU or GPU.
+      placeholder: h264_qsv on an Intel N100
