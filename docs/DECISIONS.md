@@ -2,6 +2,16 @@
 
 Newest first.
 
+### D-007 Claude Code is confined to the contact sheets, enforced
+**2026-11-14.** D-004 said the picking subprocess "sees only a temporary folder", but that rested
+on its working directory and the prompt: `--allowedTools Read` with no path let it read any file
+the process could, including the photo library mounted in the container, and it inherited every
+environment variable, the Immich API key among them. Now the allow rule is `Read(./**)` with the
+temp folder as the working directory (tested against the real CLI: a read outside is denied),
+Glob and Grep are off with the other tools, and the subprocess environment drops `IMMICH_*`,
+`HL_*`, `ANTHROPIC_*` and anything named like a key, token, secret or password. Supersedes the
+confinement part of D-004.
+
 ### D-006 Linux and Intel Quick Sync, packaged as a container
 **2026-11-14.** Highlights moved from a Windows PC with an NVIDIA GTX 1060 to a Linux server with
 an Intel iGPU. It now ships as a Docker image with Jellyfin's ffmpeg build (Quick Sync, the Intel
