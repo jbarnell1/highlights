@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from dataclasses import dataclass, field
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 ENV_FILE = Path(os.environ.get("HL_ENV_FILE", Path.home() / ".highlights.env"))
 
@@ -115,11 +115,12 @@ class Settings:
         folder used to live (for example E:\\Highlights\\work\\...); those are re-rooted here."""
         if not stored:
             return None
-        if "\\" in stored or (len(stored) > 1 and stored[1] == ":"):
-            parts = PureWindowsPath(stored).parts
-        else:
-            parts = Path(stored).parts
-        if not Path(stored).is_absolute() and not PureWindowsPath(stored).is_absolute():
+        # Read the stored path by its own flavour, not this machine's: "/srv/..." is absolute even
+        # when the data folder now sits on Windows.
+        windows = "\\" in stored or (len(stored) > 1 and stored[1] == ":")
+        pure = PureWindowsPath(stored) if windows else PurePosixPath(stored)
+        parts = pure.parts
+        if not pure.is_absolute():
             return self.data_dir.joinpath(*parts)
         if "work" in parts:
             return self.data_dir.joinpath(*parts[parts.index("work"):])

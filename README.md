@@ -96,7 +96,8 @@ Then open it:
   `tailscale serve --bg --https=443 --set-path=/highlights http://127.0.0.1:8040`, then open
   `https://<your-machine>/highlights/`.
 
-It has no login of its own: keep it on a private network.
+It has no login of its own: keep it on a private network, or see
+[Keeping it private](#keeping-it-private).
 
 `compose.yaml` joins Immich's Docker network (`immich_default`) and reaches it at
 `http://immich_server:2283`. If Immich runs elsewhere, drop that network and set `IMMICH_URL`.
@@ -184,6 +185,59 @@ Everything is set in `.env`. These are the settings that matter, with the defaul
 | `HL_CLEANUP_ENABLED` | `false` | Allow moving an event's raw clips to Immich's trash |
 | `RENDER_GID` | `44` | The host's `render` group, so the container may use Quick Sync |
 
+## Keeping it private
+
+Highlights trusts whoever can reach it, and it holds an Immich API key. The port is bound to
+`127.0.0.1`, so nothing outside the machine reaches it until you put something in front. Two ways
+to do that:
+
+- **A private network.** `tailscale serve`, as in the quick start, publishes it only to devices
+  signed in to your tailnet. This is how the maintainer runs it.
+- **A reverse proxy that asks for a password.** For example, with [Caddy](https://caddyserver.com)
+  and the default `HL_BASE_PATH=/highlights`:
+
+  ```
+  photos.example.com {
+      handle_path /highlights/* {
+          basic_auth {
+              # caddy hash-password prints the hash
+              alice <password hash>
+          }
+          reverse_proxy 127.0.0.1:8040
+      }
+  }
+  ```
+
+  Any proxy that authenticates works the same way (nginx with `auth_basic`, or Authelia or
+  Authentik in front), as long as it strips the `/highlights` prefix. The Caddy example is a
+  starting point and is not covered by the tests.
+
+Do not forward port 8040 to the internet.
+
+## Upgrading and backups
+
+To upgrade, read the [changelog](CHANGELOG.md), then:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+`:latest` follows the newest release. To stay on one version, set the image in `compose.yaml` to a
+tag such as `ghcr.io/jbarnell1/highlights:0.2.1`. No release so far has changed the database
+layout; if one does, the changelog will say what to do.
+
+What to back up is small, because your photos, the pick albums and the finished videos all live
+in Immich:
+
+- **`data/highlights.db`** holds what Highlights knows about each event: its stage, the picks and
+  the activity log. Copy it while the container is stopped, or with `sqlite3 data/highlights.db
+  ".backup backup.db"` while it runs.
+- **`data/work/`** holds contact sheets and files from renders in progress. It can be left out of
+  backups.
+- **`.env`** holds your two keys. Keep a copy somewhere private.
+
+Back up Immich itself separately, and do that before you turn on `HL_CLEANUP_ENABLED`.
+
 ## How it works
 
 `found > picking > picks_ready > rendering > ready > (cleaning) > done`, plus `dismissed`.
@@ -206,7 +260,8 @@ Everything is set in `.env`. These are the settings that matter, with the defaul
 | [README](README.md) | What it is, how to install it, what leaves your server |
 | [.env.example](.env.example) | Every setting, with comments |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Why it is built this way: the design decisions, newest first |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | What works, known limits, and ideas for later |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What works, known limits, what maintenance covers, and ideas nobody is building yet |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up, where the code lives, and the rules a change has to keep |
 | [SECURITY.md](SECURITY.md) | How to run it safely and how to report a vulnerability |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | How people are expected to treat each other here |
@@ -214,9 +269,14 @@ Everything is set in `.env`. These are the settings that matter, with the defaul
 
 ## Project status and roadmap
 
-Used by one household. Expect rough edges. It has been run against a single Immich install, the
-image is amd64 only, and there is no login, no music and no local-model picker yet. The full list
-of limits and the ideas for what comes next are in [docs/ROADMAP.md](docs/ROADMAP.md).
+Highlights is in maintenance. It does what it set out to do, one household uses it, and the
+maintainer keeps it working: security fixes, bugs that break the pipeline, and changes in Immich
+or Claude Code that stop it running. New features are not planned, though pull requests for them
+are welcome.
+
+Know its limits before you install it: it has been run against a single Immich install, the image
+is amd64 only, and there is no login, no music and no local-model picker. The full list, and what
+maintenance covers, is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 Highlights is an independent project. It is not affiliated with Immich or Anthropic.
 
@@ -224,7 +284,7 @@ Highlights is an independent project. It is not affiliated with Immich or Anthro
 
 Highlights was built with heavy help from [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 the model wrote most of the code, tests and docs, directed by the maintainer, who runs it on a
-real household library. It is tested with 30 unit tests that use a fake Immich and need no
+real household library. It is tested with 32 unit tests that use a fake Immich and need no
 network, GPU or Claude account. They cover event detection, pick parsing and clamping, the
 ffmpeg commands, the pipeline steps including the cleanup rules, and every page at every stage.
 CI runs the tests and `ruff` on every push, builds the Docker image and checks that ffmpeg with
