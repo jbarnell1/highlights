@@ -1,10 +1,24 @@
 # Roadmap
 
-Highlights is used by one household and built in spare time. This page says what works today,
-what is known to be missing, and what might come next. Nothing here is a promise or a date.
-The reasons behind past choices are in [DECISIONS.md](DECISIONS.md).
+Highlights is used by one household and kept up in spare time. It is in maintenance: the feature
+set below is the finished version 0.2. This page says what works, what maintenance covers, what
+is known to be missing, and which ideas nobody is building. The reasons behind past choices are in
+[DECISIONS.md](DECISIONS.md), and each release is in the [changelog](../CHANGELOG.md).
 
-## Works today (0.2.0)
+## What maintenance covers
+
+The maintainer will:
+
+- fix security problems and release the fix, as 0.2.1 did;
+- fix bugs that stop an event getting from found to a video in Immich;
+- keep it running when Immich's API or the Claude Code CLI changes;
+- refresh dependencies and the base image when a release is cut;
+- read issues and review pull requests, without a promised reply time.
+
+The maintainer will not add features. The ideas at the bottom of this page are there for anyone
+who wants to build one; open an issue first so the shape can be agreed.
+
+## Works today (0.2.1)
 
 - Finds trips and finished months in an Immich library, daily or on demand.
 - Claude picks clips and photos from contact sheets; the picks become an Immich album.
@@ -31,9 +45,10 @@ The reasons behind past choices are in [DECISIONS.md](DECISIONS.md).
 - **Tested against one Immich install.** The unit tests use a fake Immich; there are no browser
   tests and no automated test against a real Immich server or the real Claude Code CLI.
 
-## Ideas for later
+## Ideas nobody is building
 
-Roughly in the order they seem useful. Open an issue if one matters to you.
+Not planned by the maintainer, and roughly in the order they seem useful. Pull requests are
+welcome; open an issue first.
 
 - A local vision model as an alternative picker, so nothing has to leave the server.
 - A demo mode with sample data, to try the app without Immich or a Claude account.

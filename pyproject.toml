@@ -1,6 +1,6 @@
 [project]
 name = "highlights"
-version = "0.2.0"
+version = "0.2.1"
 description = "Turns trips and months in Immich into highlight videos, with a phone PWA to follow and approve each step."
 readme = "README.md"
 license = "AGPL-3.0-or-later"

@@ -40,3 +40,8 @@ hostname, address, path, API key, token or anything about the household that run
 CI (`ci.yml`) runs lint, tests and a Docker build on every push; `gitleaks.yml` scans history.
 A `v*` tag publishes `ghcr.io/jbarnell1/highlights:<version>` and `:latest`
 (`publish-image.yml`).
+
+The project is in maintenance (see `docs/ROADMAP.md`): fixes, not features. To release: set the
+version in `pyproject.toml` and run `uv lock`, add the section to `CHANGELOG.md`, update the
+"Works today" heading in the roadmap, merge, tag `v<version>` on main, then make a GitHub release
+from the tag with that changelog section as its notes.
